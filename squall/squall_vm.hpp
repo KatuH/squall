@@ -38,6 +38,7 @@ public:
         HSQUIRRELVM vm = handle();
         sq_setforeignptr(vm, &klass_table_);
 
+        // root table取得 
         sq_pushroottable(vm);
         sq_getstackobj(vm, -1, &root_);
         sq_pop(vm, -1);
