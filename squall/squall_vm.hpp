@@ -21,8 +21,23 @@ class VMImp { // for destruct order
 public:
     VMImp(int stack_size = 1024) { vm_ = sq_open(stack_size); }
     ~VMImp() {
-        sq_close(vm_);
+        // move後にはnullptrであることに注意 
+        if(vm_) sq_close(vm_);
     }
+
+    // friendVMを作る予定 
+    explicit VMImp(const VMImp& r, int stack_size = 1024) = delete;
+    // 不正closeを避けるためcopy禁止 
+    VMImp& operator=(const VMImp&) = delete;
+    // moveに支障はないのでmovable
+    VMImp(VMImp&& r) noexcept : vm_(r.vm_) { r.vm_ = nullptr; }
+    VMImp& operator=(VMImp&& r) noexcept {
+         if(vm_) sq_close(vm_);
+         vm_ = r.vm_;
+         r.vm_ = nullptr;
+         return *this;
+    }
+
     HSQUIRRELVM handle() { return vm_; }
 private:
     HSQUIRRELVM vm_;
@@ -46,6 +61,15 @@ public:
         root_table_.reset(new TableBase(vm, root_));
     }
     ~VM() { sq_setforeignptr(handle(), 0); } 
+
+    // とりあえずコピーは禁止しておく 
+    // newthread()とかで実装する方が良さげ 
+    VM(const VM&) = delete;
+    VM& operator=(const VM&) = delete;
+
+    // moveしても良いので明示的に許可 
+    VM(VM&&) = default;
+    VM& operator=(VM&&) = default;
 
 #ifdef _MSC_VER
     //Avoiding Visual C ++ bugs
