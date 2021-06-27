@@ -128,6 +128,7 @@ enum class FetchContext {
     Argument,
     ReturnValue,
     TableEntry,
+	ArrayEntry,
     YieldedValue,
 };
 
@@ -146,6 +147,11 @@ inline string fetch_context_string<FetchContext::ReturnValue>() {
 template <>
 inline string fetch_context_string<FetchContext::TableEntry>() {
     return _SC("table entry");
+}
+
+template <>
+inline string fetch_context_string<FetchContext::ArrayEntry>() {
+	return "array entry";
 }
 
 template <>
@@ -238,8 +244,11 @@ struct Fetch<std::uint64_t, FC> : public FetchInt<FC, std::uint64_t> {};
 template <FetchContext FC>
 struct Fetch<float, FC> {
     static float doit(HSQUIRRELVM vm, SQInteger index) {
-        return getdata<SQFloat, FC>(
-            vm, index, OT_FLOAT, sq_getfloat);
+		SQObjectType at = sq_gettype(vm, index);
+		if ( at == OT_INTEGER ) {
+			return getdata<SQInteger, FC>(vm, index, OT_INTEGER, sq_getinteger);
+		}
+		return getdata<SQFloat, FC>(vm, index, OT_FLOAT, sq_getfloat);
     }
 };
 
@@ -249,6 +258,14 @@ struct Fetch<bool, FC> {
         return getdata<SQBool, FC>(
             vm, index, OT_BOOL, sq_getbool);
     }
+};
+
+template <FetchContext FC>
+struct Fetch<HSQOBJECT, FC> {
+	static HSQOBJECT doit(HSQUIRRELVM vm, SQInteger index, SQObjectType type) {
+		return getdata<HSQOBJECT, FC>(
+		vm, index, type, sq_getstackobj);
+	}
 };
 
 template <FetchContext FC>
@@ -263,6 +280,11 @@ template <class T, FetchContext FC>
 typename wrapped_type<T>::wrapper_type
 fetch(HSQUIRRELVM vm, SQInteger index) {
     return Fetch<typename wrapped_type<T>::wrapper_type, FC>::doit(vm, index);
+}
+
+template <class T, FetchContext FC>
+T fetch(HSQUIRRELVM vm, SQInteger index, SQObjectType type) {
+	return Fetch<typename wrapped_type<T>::wrapper_type, FC>::doit(vm, index, type);
 }
 
 }
